@@ -38,6 +38,45 @@ app.get("/api/flightsearch", (req, res) => {
   const arrivalDestination = req.body.arrivalDestination;
   const departureAt = new Date(req.body.departureAt).toISOString();
   const seats = req.body.seats;
+  const priceRangeHigh = req.body.priceRangeHigh;
+  const priceRangeLow = req.body.priceRangeLow;
+
+  const query = `SELECT *
+                FROM FlightItineraries AS fi
+                JOIN FlightRoutes AS fr ON fi.route_id = fr.route_id
+                JOIN FlightPrices AS fp ON fi.itinerary_flight_id = fp.itinerary_flight_id
+                WHERE fr.departureDestination = ? 
+                AND fr.arrivalDestination = ?
+                AND DATE(fi.departureAt) = DATE(?)
+                AND fi.availableSeats >= ?
+                AND fp.adult <= ?
+                AND fp.adult >= ?`;
+
+  db.all(
+    query,
+    [
+      departureDestination,
+      arrivalDestination,
+      departureAt,
+      seats,
+      priceRangeHigh,
+      priceRangeLow,
+    ],
+    (err, rows) => {
+      if (err) {
+        res.status(500).send({ error: err.message });
+      } else {
+        res.send(rows);
+      }
+    }
+  );
+});
+
+app.post("/api/flightbook", (req, res) => {
+  const departureDestination = req.body.departureDestination;
+  const arrivalDestination = req.body.arrivalDestination;
+  const departureAt = new Date(req.body.departureAt).toISOString();
+  const seats = req.body.seats;
 
   const query = `SELECT *
                 FROM FlightItineraries AS fi
@@ -45,11 +84,21 @@ app.get("/api/flightsearch", (req, res) => {
                 WHERE fr.departureDestination = ? 
                 AND fr.arrivalDestination = ?
                 AND DATE(fi.departureAt) = DATE(?)
-                AND fi.availableSeats >= ?`;
+                AND fi.availableSeats >= ?
+                JOIN FlightPrices AS fp ON fi.itinerary_flight_id = fr.itinerary_flight_id
+                WHERE adult <= priceRangeHigh
+                AND adult >= priceRangeLow`;
 
   db.all(
     query,
-    [departureDestination, arrivalDestination, departureAt, seats],
+    [
+      departureDestination,
+      arrivalDestination,
+      departureAt,
+      seats,
+      priceRangeHigh,
+      priceRangeLow,
+    ],
     (err, rows) => {
       if (err) {
         res.status(500).send({ error: err.message });
