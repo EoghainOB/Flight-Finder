@@ -63,7 +63,9 @@ app.get("/api/flightsearch", (req, res) => {
       priceRangeLow,
     ],
     (err, rows) => {
-      if (err) {
+      if (!rows || rows.length === 0) {
+        res.status(404).send("No flights found that meet your requirements");
+      } else if (err) {
         res.status(500).send({ error: err.message });
       } else {
         res.send(rows);
