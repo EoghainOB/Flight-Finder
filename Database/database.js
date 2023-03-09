@@ -97,6 +97,35 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
         }
       }
     );
+    db.run(
+      `CREATE TABLE Bookings(
+        booking_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        itinerary_flight_id VARCHAR(50),
+        seats INT,
+        adult INT,
+        child INT,
+        total INT,
+        currency VARCHAR(50)
+      );`,
+      (err) => {
+        if (err) {
+          // Table already created
+          console.log("Already Bookings table there");
+        } else {
+          db.run(
+            `INSERT INTO Bookings (itinerary_flight_id, seats, adult, child, total, currency) VALUES (?,?,?,?,?,?)`,
+            ["", 0, 0, 0, 0, ""],
+            (err) => {
+              if (err) {
+                console.log("Error inserting empty booking row:", err.message);
+              } else {
+                console.log("Empty booking row inserted successfully.");
+              }
+            }
+          );
+        }
+      }
+    );
   }
 });
 
