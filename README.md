@@ -5,7 +5,7 @@ This backend API enables flight search and booking and is made with Javascript, 
 The following are the API endpoints:
 
 ## GET `/api/flightsearch`
-This endpoint takes in the following parameters:
+This endpoint takes in the following parameters (all are required):
 
 - `departureDestination` (string): Departure destination of the flight.
 - `arrivalDestination` (string): Arrival destination of the flight.
@@ -17,7 +17,7 @@ This endpoint takes in the following parameters:
 And returns all flights that match the given parameters.
 
 ## POST `/api/booking`
-This endpoint is used to book a flight, and takes in the following parameters:
+This endpoint is used to book a flight, and takes in the following parameters (all are required):
 
 - `itinerary_flight_id` (number): ID of the flight itinerary.
 - `seats` (number): Number of seats required.
