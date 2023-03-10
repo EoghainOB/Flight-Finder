@@ -35,55 +35,17 @@ app.get("/api/flightsearch", (req, res) => {
   const priceRangeHigh = req.body.priceRangeHigh;
   const priceRangeLow = req.body.priceRangeLow;
 
-  const query = `
-      SELECT fi.itinerary_flight_id, fi.departureAt, fi.arrivalAt, fi.availableSeats, fp.adult, fp.child, fp.currency, fr1.departureDestination, fr1.arrivalDestination
-      FROM FlightItineraries AS fi
-      JOIN (
-        SELECT fr1.route_id AS departureRouteId, fr2.route_id AS arrivalRouteId
-        FROM FlightRoutes AS fr1
-        JOIN FlightRoutes AS fr2 ON fr1.arrivalDestination = fr2.departureDestination
-        WHERE fr1.departureDestination = ?
-        AND fr2.arrivalDestination = ?
-        ) AS routes ON fi.route_id = routes.departureRouteId
-        JOIN FlightRoutes AS fr1 ON fi.route_id = fr1.route_id
-        JOIN FlightPrices AS fp ON fi.itinerary_flight_id = fp.itinerary_flight_id
-        WHERE (
-        (fr1.departureDestination = ? OR fr1.arrivalDestination = ?)
-        AND DATE(fi.departureAt) = DATE(?)
-        AND fi.availableSeats >= ?
-        AND fp.adult <= ?
-        AND fp.adult >= ?
-      )
-      
-      UNION ALL
-      
-      SELECT fi.itinerary_flight_id, fi.departureAt, fi.arrivalAt, fi.availableSeats, fp.adult, fp.child, fp.currency, fr2.departureDestination, fr2.arrivalDestination
-      FROM FlightItineraries AS fi
-      JOIN (
-        SELECT fr1.route_id AS departureRouteId, fr2.route_id AS arrivalRouteId
-        FROM FlightRoutes AS fr1
-        JOIN FlightRoutes AS fr2 ON fr1.arrivalDestination = fr2.departureDestination
-        WHERE fr1.departureDestination = ?
-        AND fr2.arrivalDestination = ?
-        ) AS routes ON fi.route_id = routes.arrivalRouteId
-        JOIN FlightRoutes AS fr2 ON fi.route_id = fr2.route_id
-        JOIN FlightPrices AS fp ON fi.itinerary_flight_id = fp.itinerary_flight_id
-        WHERE (
-        (fr2.departureDestination = ? OR fr2.arrivalDestination = ?)
-        AND DATE(fi.departureAt) = DATE(?)
-        AND fi.availableSeats >= ?
-        AND fp.adult <= ?
-        AND fp.adult >= ?
-      )
-      
-      UNION ALL
-      
+  const query = `      
       SELECT fi.itinerary_flight_id, fi.departureAt, fi.arrivalAt, fi.availableSeats, fp.adult, fp.child, fp.currency, fr.departureDestination, fr.arrivalDestination
       FROM FlightItineraries AS fi
       JOIN FlightRoutes AS fr ON fi.route_id = fr.route_id
       JOIN FlightPrices AS fp ON fi.itinerary_flight_id = fp.itinerary_flight_id
       WHERE fr.departureDestination = ? 
-      AND fr.arrivalDestination = ?
+      AND DATE(fi.departureAt) = DATE(?)
+      AND fi.availableSeats >= ?
+      AND fp.adult <= ?
+      AND fp.adult >= ?
+      OR fr.arrivalDestination = ?
       AND DATE(fi.departureAt) = DATE(?)
       AND fi.availableSeats >= ?
       AND fp.adult <= ?
@@ -96,22 +58,10 @@ app.get("/api/flightsearch", (req, res) => {
     query,
     [
       departureDestination,
-      arrivalDestination,
-      departureDestination,
-      arrivalDestination,
       departureAt,
       seats,
       priceRangeHigh,
       priceRangeLow,
-      departureDestination,
-      arrivalDestination,
-      departureDestination,
-      arrivalDestination,
-      departureAt,
-      seats,
-      priceRangeHigh,
-      priceRangeLow,
-      departureDestination,
       arrivalDestination,
       departureAt,
       seats,
@@ -144,33 +94,38 @@ app.get("/api/flightsearch", (req, res) => {
           if (existingGroup) {
             existingGroup.outbound = currentFlight;
           } else {
-            result.push({
-              itinerary_flight_id: currentFlight.itinerary_flight_id,
-              outbound: currentFlight,
-            });
+            result.push(currentFlight);
           }
           return result;
         },
         []
       );
 
-      const groupedIndirectFlights = indirectFlights.reduce(
-        (result, currentFlight, index) => {
+      const outboundIndirect = indirectFlights.filter((flight) => {
+        return flight.departureDestination === departureDestination;
+      });
+
+      const inboundIndirect = indirectFlights.filter((flight) => {
+        return flight.arrivalDestination === arrivalDestination;
+      });
+
+      const groupedIndirectFlights = [];
+
+      outboundIndirect.forEach((outboundFlight) => {
+        inboundIndirect.forEach((inboundFlight) => {
           if (
-            index % 2 === 0 &&
-            indirectFlights[index + 1] &&
-            currentFlight.arrivalDestination ===
-              indirectFlights[index + 1].departureDestination
+            outboundFlight.arrivalDestination ===
+              inboundFlight.departureDestination &&
+            new Date(inboundFlight.departureAt) >
+              new Date(outboundFlight.arrivalAt)
           ) {
-            result.push({
-              outbound: currentFlight,
-              inbound: indirectFlights[index + 1],
+            groupedIndirectFlights.push({
+              outboundFlight,
+              inboundFlight,
             });
           }
-          return result;
-        },
-        []
-      );
+        });
+      });
 
       res.json({
         message: "success",
