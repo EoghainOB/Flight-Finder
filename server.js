@@ -12,8 +12,6 @@ app.listen(8080, () => {
   console.log("Server running on port %PORT%".replace("%PORT%", 8080));
 });
 
-//Flights endpoints
-
 app.get("/api/flights", (req, res, next) => {
   const sql = "select * from FlightRoutes";
   const params = [];
@@ -123,9 +121,64 @@ app.get("/api/flightsearch", (req, res) => {
     (err, rows) => {
       if (err) {
         res.status(500).send({ error: err.message });
-      } else {
-        res.send(rows);
+        return;
       }
+      const flights = rows;
+
+      const directFlights = flights.filter(
+        (flight) =>
+          flight.departureDestination === departureDestination &&
+          flight.arrivalDestination === arrivalDestination
+      );
+
+      const indirectFlights = flights.filter(
+        (flight) => !directFlights.includes(flight)
+      );
+
+      const groupedDirectFlights = directFlights.reduce(
+        (result, currentFlight) => {
+          const existingGroup = result.find(
+            (group) =>
+              group.itinerary_flight_id === currentFlight.itinerary_flight_id
+          );
+          if (existingGroup) {
+            existingGroup.outbound = currentFlight;
+          } else {
+            result.push({
+              itinerary_flight_id: currentFlight.itinerary_flight_id,
+              outbound: currentFlight,
+            });
+          }
+          return result;
+        },
+        []
+      );
+
+      const groupedIndirectFlights = indirectFlights.reduce(
+        (result, currentFlight, index) => {
+          if (
+            index % 2 === 0 &&
+            indirectFlights[index + 1] &&
+            currentFlight.arrivalDestination ===
+              indirectFlights[index + 1].departureDestination
+          ) {
+            result.push({
+              outbound: currentFlight,
+              inbound: indirectFlights[index + 1],
+            });
+          }
+          return result;
+        },
+        []
+      );
+
+      res.json({
+        message: "success",
+        data: {
+          direct: groupedDirectFlights,
+          indirect: groupedIndirectFlights,
+        },
+      });
     }
   );
 });
@@ -192,7 +245,6 @@ app.post("/api/booking", async (req, res, next) => {
   }
 });
 
-// Default response for any other request
 app.use(function (req, res) {
   res.sendStatus(404);
 });
