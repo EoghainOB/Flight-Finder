@@ -94,7 +94,10 @@ app.get("/api/flightsearch", (req, res) => {
           if (existingGroup) {
             existingGroup.outbound = currentFlight;
           } else {
-            result.push(currentFlight);
+            result.push({
+              id: currentFlight.itinerary_flight_id,
+              currentFlight,
+            });
           }
           return result;
         },
@@ -120,6 +123,13 @@ app.get("/api/flightsearch", (req, res) => {
               new Date(outboundFlight.arrivalAt)
           ) {
             groupedIndirectFlights.push({
+              id: `${outboundFlight.itinerary_flight_id}.${inboundFlight.itinerary_flight_id}`,
+              adultIndirect: +outboundFlight.adult + +inboundFlight.adult,
+              childIndirect: +outboundFlight.child + +inboundFlight.child,
+              departureAtIndirect: outboundFlight.departureAt,
+              arrivalAtIndirect: inboundFlight.arrivalAt,
+              departureDestinationIndirect: outboundFlight.departureDestination,
+              arrivalDestinationIndirect: inboundFlight.arrivalDestination,
               outboundFlight,
               inboundFlight,
             });
