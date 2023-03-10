@@ -129,7 +129,7 @@ app.get("/api/flightsearch", (req, res) => {
               departureAtIndirect: outboundFlight.departureAt,
               arrivalAtIndirect: inboundFlight.arrivalAt,
               departureDestinationIndirect: outboundFlight.departureDestination,
-              arrivalDestinationIndirect: inboundFlight.arrivalDestination,
+              arrivalDestinationIndirect: outboundFlight.arrivalDestination,
               outboundFlight,
               inboundFlight,
             });
@@ -148,10 +148,32 @@ app.get("/api/flightsearch", (req, res) => {
   );
 });
 
-app.post("/api/booking", async (req, res, next) => {
-  try {
+app.post("/api/booking", (req, res) => {
+  const itinerary_flight_id = req.body.itinerary_flight_id;
+  const seats = req.body.seats;
+
+  const itinerary_flight_ids = itinerary_flight_id.split(".");
+  let sql;
+  let values;
+
+  if (itinerary_flight_ids.length === 1) {
+    sql =
+      "UPDATE FlightItineraries SET availableSeats = availableSeats - ? WHERE itinerary_flight_id = ?";
+    values = [seats, itinerary_flight_id];
+  } else {
+    sql =
+      "UPDATE FlightItineraries SET availableSeats = availableSeats - ? WHERE itinerary_flight_id IN (?, ?)";
+    values = [seats, itinerary_flight_ids[0], itinerary_flight_ids[1]];
+  }
+
+  db.run(sql, values, function (err) {
+    if (err) {
+      res.status(500).send({ error: err.message });
+      return;
+    }
+
     const booking = {
-      itinerary_flight_id: req.body.itinerary_flight_id,
+      itinerary_flight_id,
       seats: req.body.seats,
       adult: req.body.adult,
       child: req.body.child,
@@ -168,46 +190,18 @@ app.post("/api/booking", async (req, res, next) => {
       booking.total,
       booking.currency,
     ];
-
     db.run(sql, values, function (err) {
       if (err) {
         res.status(500).send({ error: err.message });
         return;
       }
-      const sql2 =
-        "SELECT availableSeats FROM FlightItineraries WHERE itinerary_flight_id = ?";
-      db.get(sql2, [booking.itinerary_flight_id], (err, row) => {
-        if (err) {
-          res.status(500).send({ error: err.message });
-          return;
-        }
-        if (!row) {
-          res.status(404).send({ error: "flight itinerary not found" });
-          return;
-        }
-        const availableSeats = row.availableSeats - booking.seats;
-        const sql3 =
-          "UPDATE FlightItineraries SET availableSeats = ? WHERE itinerary_flight_id = ?";
-        db.run(
-          sql3,
-          [availableSeats, booking.itinerary_flight_id],
-          function (err) {
-            if (err) {
-              res.status(500).send({ error: err.message });
-              return;
-            }
-            res.send({
-              message: "success",
-              booking_id: this.lastID,
-            });
-          }
-        );
+      res.json({
+        message: "success",
+        data: booking,
+        id: this.lastID,
       });
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ error: err.message });
-  }
+  });
 });
 
 app.use(function (req, res) {
