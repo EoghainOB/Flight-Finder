@@ -12,7 +12,7 @@ app.listen(8080, () => {
   console.log("Server running on port %PORT%".replace("%PORT%", 8080));
 });
 
-app.get("/api/flights", (req, res, next) => {
+app.get("/api/flights", (req, res) => {
   const sql = "select * from FlightRoutes";
   const params = [];
   db.all(sql, params, (err, rows) => {
@@ -28,12 +28,12 @@ app.get("/api/flights", (req, res, next) => {
 });
 
 app.get("/api/flightsearch", (req, res) => {
-  const departureDestination = req.body.departureDestination;
-  const arrivalDestination = req.body.arrivalDestination;
-  const departureAt = new Date(req.body.departureAt).toISOString();
-  const seats = req.body.seats;
-  const priceRangeHigh = req.body.priceRangeHigh;
-  const priceRangeLow = req.body.priceRangeLow;
+  const departureDestination = req.query.departureDestination;
+  const arrivalDestination = req.query.arrivalDestination;
+  const departureAt = new Date(req.query.departureAt).toISOString();
+  const seats = req.query.seats;
+  const priceRangeHigh = req.query.priceRangeHigh;
+  const priceRangeLow = req.query.priceRangeLow;
 
   const query = `      
       SELECT fi.itinerary_flight_id, fi.departureAt, fi.arrivalAt, fi.availableSeats, fp.adult, fp.child, fp.currency, fr.departureDestination, fr.arrivalDestination
